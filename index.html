@@ -546,7 +546,7 @@ function renderList() {
     return;
   }
   ul.innerHTML = hs.map(h => {
-    const kn = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
+    const kn = h.tonalidad!=null ? stName(h.tonalidad,S.sys)+(h.tSuffix||'') : '';
     const numHtml = h.especial
       ? `<span class="esp-badge">ESP</span>`
       : `<span class="hnum">${h.numero}</span>`;
@@ -565,7 +565,7 @@ function showHymn(id) { S.hymnId=id; S.offset=0; refreshHymn(); showView('hymn')
 function refreshHymn() {
   const h = db.get(S.hymnId); if(!h) return;
   const kt = (((h.tonalidad??0)+S.offset)%12+12)%12;
-  const kn = h.tonalidad!=null ? stName(kt,S.sys) : '—';
+  const kn = h.tonalidad!=null ? stName(kt,S.sys)+(h.tSuffix||'') : '—';
   const off = S.offset===0?'0':(S.offset>0?'+'+S.offset:S.offset);
   document.getElementById('vbarTitle').textContent = h.titulo;
   document.getElementById('vNum').textContent      = h.especial ? 'ESP' : '#'+h.numero;
@@ -591,7 +591,7 @@ function showEditor(id) {
   if (h) {
     document.getElementById('fnum').value     = h.numero || '';
     document.getElementById('ftitle').value   = h.titulo;
-    document.getElementById('fkey').value     = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
+    document.getElementById('fkey').value     = h.tonalidad!=null ? stName(h.tonalidad,S.sys)+(h.tSuffix||'') : '';
     document.getElementById('fcontent').value = convertContent(h.contenido,S.sys,0);
   } else {
     ['fnum','ftitle','fkey','fcontent'].forEach(i=>document.getElementById(i).value='');
@@ -615,9 +615,9 @@ async function saveHymn() {
   const cRaw   = document.getElementById('fcontent').value;
   if (!esp && (!num||num<1)) return toast('Ingresa un número válido');
   if (!titulo)               return toast('El título es obligatorio');
-  let tonalidad = null;
-  if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; }
-  const hymn = { id:S.hymnId||genId(), especial:esp, numero:num, titulo, tonalidad, contenido:normalizeContent(cRaw) };
+  let tonalidad = null, tSuffix = '';
+  if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; tSuffix=p.suffix||''; }
+  const hymn = { id:S.hymnId||genId(), especial:esp, numero:num, titulo, tonalidad, tSuffix, contenido:normalizeContent(cRaw) };
   await db.upsert(hymn);
   S.hymnId = hymn.id;
   toast('Himno guardado ✓');
@@ -641,7 +641,7 @@ function toggleNotation() {
   if (S.view==='hymn')   refreshHymn();
   if (S.view==='editor' && S.hymnId) {
     const h=db.get(S.hymnId);
-    if(h){ document.getElementById('fkey').value=h.tonalidad!=null?stName(h.tonalidad,S.sys):''; document.getElementById('fcontent').value=convertContent(h.contenido,S.sys,0); }
+    if(h){ document.getElementById('fkey').value=h.tonalidad!=null?stName(h.tonalidad,S.sys)+(h.tSuffix||''):''; document.getElementById('fcontent').value=convertContent(h.contenido,S.sys,0); }
   }
 }
 
