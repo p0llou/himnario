@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Himnario">
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -374,20 +377,42 @@ function renderFull(content, sys, offset) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// § 3  ALMACENAMIENTO
+// § 3  ALMACENAMIENTO — Firebase Firestore
+//      Los himnos viven en la colección "hymns" en Firestore.
+//      onSnapshot mantiene hymnCache sincronizado en tiempo real:
+//      cualquier cambio del admin se refleja al instante en todos
+//      los dispositivos sin necesidad de recargar.
+//      enablePersistence() permite uso offline (caché en IndexedDB).
 // ════════════════════════════════════════════════════════════════
 
-const SK='himnario_v1', PK='himnario_prefs';
+const PK='himnario_prefs';
 // Hash SHA-256 del PIN de administrador (fijo en el código, no editable desde el navegador)
 const ADMIN_HASH='3bd62f7f9ccb2821f5330bd3a68629ed8b8a1a19370adf7d74636e76a698d430';
 
+// Inicializar Firebase
+firebase.initializeApp({
+  apiKey: "AIzaSyAgpnFjqnUh_DqilHjUHHqVGq5vSVgO0bs",
+  authDomain: "himnario-ieap.firebaseapp.com",
+  projectId: "himnario-ieap",
+  storageBucket: "himnario-ieap.firebasestorage.app",
+  messagingSenderId: "402649101936",
+  appId: "1:402649101936:web:691c6b41aca18312d4a6b5"
+});
+
+const firestore = firebase.firestore();
+const hymnsCol  = firestore.collection('hymns');
+
+// Habilita persistencia offline (los himnos quedan en caché local)
+firestore.enablePersistence().catch(() => {});
+
+// Caché local actualizado en tiempo real por onSnapshot
+let hymnCache = [];
+
 const db = {
-  load()    { try { return JSON.parse(localStorage.getItem(SK))||{hymns:[]}; } catch { return {hymns:[]}; } },
-  save(d)   { localStorage.setItem(SK,JSON.stringify(d)); },
-  all()     { return this.load().hymns.sort((a,b)=>a.numero-b.numero); },
-  get(id)   { return this.load().hymns.find(h=>h.id===id)||null; },
-  upsert(h) { const d=this.load(); const i=d.hymns.findIndex(x=>x.id===h.id); if(i>=0) d.hymns[i]=h; else d.hymns.push(h); this.save(d); },
-  remove(id){ const d=this.load(); d.hymns=d.hymns.filter(h=>h.id!==id); this.save(d); },
+  all()            { return [...hymnCache].sort((a,b)=>a.numero-b.numero); },
+  get(id)          { return hymnCache.find(h=>h.id===id)||null; },
+  async upsert(h)  { await hymnsCol.doc(h.id).set(h); },
+  async remove(id) { await hymnsCol.doc(id).delete(); },
 };
 
 function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
@@ -551,7 +576,7 @@ function showEditor(id) {
 
 function cancelEdit() { if(S.hymnId) showHymn(S.hymnId); else showList(); }
 
-function saveHymn() {
+async function saveHymn() {
   if (!isAdminSession()) return;
   const num    = parseInt(document.getElementById('fnum').value);
   const titulo = document.getElementById('ftitle').value.trim();
@@ -562,16 +587,16 @@ function saveHymn() {
   let tonalidad = null;
   if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; }
   const hymn = { id:S.hymnId||genId(), numero:num, titulo, tonalidad, contenido:normalizeContent(cRaw) };
-  db.upsert(hymn);
+  await db.upsert(hymn);
   S.hymnId = hymn.id;
   toast('Himno guardado ✓');
   showHymn(hymn.id);
 }
 
-function deleteHymn() {
+async function deleteHymn() {
   if (!isAdminSession()) return;
   if (!S.hymnId||!confirm('¿Eliminar este himno? Esta acción no se puede deshacer.')) return;
-  db.remove(S.hymnId);
+  await db.remove(S.hymnId);
   S.hymnId=null;
   toast('Himno eliminado');
   showList();
@@ -629,30 +654,47 @@ function toast(msg) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// § 9  DATOS DE MUESTRA + ARRANQUE
+// § 9  LISTENER FIRESTORE + ARRANQUE
+//      onSnapshot escucha cambios en la colección en tiempo real.
+//      Cada vez que el admin guarda o elimina desde cualquier
+//      dispositivo, todos los clientes reciben el snapshot nuevo
+//      y re-renderizan la vista activa automáticamente.
 // ════════════════════════════════════════════════════════════════
 
-function loadSamples() {
-  if (db.load().hymns.length) return;
-  db.save({ hymns: [
-    { id:'_s1', numero:1, titulo:'Sublime Gracia', tonalidad:5,
-      contenido:`[F]Sublime [Bb]gracia del Se[F]ñor\nQue a un in[F]feliz sal[C]vó\n[F]Fui [Bb]ciego, mas hoy [F]veo yo\nPer[F]dido, él me ha[C]lló [F]\n\n[F]Su gracia me en[Bb]señó a te[F]mer\nMis [F]dudas a[C]huyentó\n[F]¡Oh cuán [Bb]precioso fue a [F]mi ser\nEl [F]día que a[C]mé a [F]Dios!` },
-    { id:'_s2', numero:2, titulo:'Santo, Santo, Santo', tonalidad:0,
-      contenido:`[C]Santo, [F]Santo, [C]Santo es el Se[G]ñor\n[C]Dios om[Am]ni[F]po[C]tente\n[F]Santo, [C]Santo, [G]Santo, [C]Señor\n[F]Bendito [C]eres [G]tú [C]\n\n[Am]Todo el [Em]cielo ado[F]ra tu [C]nombre\n[F]Santo, [C]Santo, [G]Santo es el Se[C]ñor` },
-    { id:'_s3', numero:3, titulo:'Cuán Grande es Él', tonalidad:7,
-      contenido:`[G]Señor mi [C]Dios, al con[G]templar los [D]cielos\nEl [G]firmamento y las [C]estrellas [G]mil\n[C]Al oír tu [G]voz en los po[D]derosos truenos\nY [G]ver brillar [D]al [G]sol en su cenit\n\n[C]Entonces [G]canta mi [Em]alma\nMi [G]Salvador a [D]ti\n[G]Cuán [C]grande [G]es [D]él\n[G]Cuán [C]grande [D]es [G]él` },
-    { id:'_s4', numero:4, titulo:'Maravillosa Gracia', tonalidad:2,
-      contenido:`[D]Maravillosa [G]gracia de Je[D]sús\nMás [D]grande que todo mi [A]pecado\n[D]Allá en el [G]madero del [D]Señor\nMi [A]deuda él [D]canceló\n\n[D]Maravillosa [G]gracia, [D]maravillosa gracia\n[D]Gracia que [A]me per[D]donó` },
-  ]});
+const SAMPLES = [
+  { id:'_s1', numero:1, titulo:'Sublime Gracia', tonalidad:5,
+    contenido:`[F]Sublime [Bb]gracia del Se[F]ñor\nQue a un in[F]feliz sal[C]vó\n[F]Fui [Bb]ciego, mas hoy [F]veo yo\nPer[F]dido, él me ha[C]lló [F]\n\n[F]Su gracia me en[Bb]señó a te[F]mer\nMis [F]dudas a[C]huyentó\n[F]¡Oh cuán [Bb]precioso fue a [F]mi ser\nEl [F]día que a[C]mé a [F]Dios!` },
+  { id:'_s2', numero:2, titulo:'Santo, Santo, Santo', tonalidad:0,
+    contenido:`[C]Santo, [F]Santo, [C]Santo es el Se[G]ñor\n[C]Dios om[Am]ni[F]po[C]tente\n[F]Santo, [C]Santo, [G]Santo, [C]Señor\n[F]Bendito [C]eres [G]tú [C]\n\n[Am]Todo el [Em]cielo ado[F]ra tu [C]nombre\n[F]Santo, [C]Santo, [G]Santo es el Se[C]ñor` },
+  { id:'_s3', numero:3, titulo:'Cuán Grande es Él', tonalidad:7,
+    contenido:`[G]Señor mi [C]Dios, al con[G]templar los [D]cielos\nEl [G]firmamento y las [C]estrellas [G]mil\n[C]Al oír tu [G]voz en los po[D]derosos truenos\nY [G]ver brillar [D]al [G]sol en su cenit\n\n[C]Entonces [G]canta mi [Em]alma\nMi [G]Salvador a [D]ti\n[G]Cuán [C]grande [G]es [D]él\n[G]Cuán [C]grande [D]es [G]él` },
+  { id:'_s4', numero:4, titulo:'Maravillosa Gracia', tonalidad:2,
+    contenido:`[D]Maravillosa [G]gracia de Je[D]sús\nMás [D]grande que todo mi [A]pecado\n[D]Allá en el [G]madero del [D]Señor\nMi [A]deuda él [D]canceló\n\n[D]Maravillosa [G]gracia, [D]maravillosa gracia\n[D]Gracia que [A]me per[D]donó` },
+];
+
+async function maybeLoadSamples() {
+  const snap = await hymnsCol.limit(1).get();
+  if (!snap.empty) return;
+  const batch = firestore.batch();
+  SAMPLES.forEach(h => batch.set(hymnsCol.doc(h.id), h));
+  await batch.commit();
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 
 loadPrefs();
 document.getElementById('ntoggle').textContent = S.sys==='american' ? 'C-D-E' : 'Do-Re-Mi';
-loadSamples();
 updateAdminUI();
-renderList();
+
+// Conectar listener en tiempo real — actualiza hymnCache y re-renderiza
+hymnsCol.onSnapshot(snapshot => {
+  hymnCache = snapshot.docs.map(doc => doc.data());
+  if (S.view==='list') renderList();
+  if (S.view==='hymn') refreshHymn();
+}, err => console.error('Firestore:', err));
+
+// Cargar datos de muestra si la colección está vacía
+maybeLoadSamples();
 
 </script>
 </body>
