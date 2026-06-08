@@ -244,7 +244,7 @@ body.is-admin .list-foot .admin-only{display:flex}
         <div class="frow">
           <div class="fg" id="fnumWrap" style="max-width:100px">
             <label for="fnum">Número</label>
-            <input type="number" id="fnum" min="1" placeholder="1">
+            <input type="text" inputmode="numeric" id="fnum" placeholder="1" oninput="if(/^e/i.test(this.value)){document.getElementById('fesp').checked=true;toggleEsp();this.value='';}">
           </div>
           <div class="fg">
             <label for="ftitle">Título</label>
@@ -609,7 +609,7 @@ function toggleEsp() {
 async function saveHymn() {
   if (!isAdminSession()) return;
   const esp    = document.getElementById('fesp').checked;
-  const num    = esp ? null : parseInt(document.getElementById('fnum').value);
+  const num    = esp ? null : parseInt(document.getElementById('fnum').value, 10);
   const titulo = document.getElementById('ftitle').value.trim();
   const keyRaw = document.getElementById('fkey').value.trim();
   const cRaw   = document.getElementById('fcontent').value;
