@@ -8,6 +8,6 @@
   "theme_color": "#2563eb",
   "lang": "es",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "LOGO IEAP 3.png", "sizes": "any", "type": "image/png", "purpose": "any maskable" }
   ]
 }
