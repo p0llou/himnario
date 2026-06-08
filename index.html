@@ -175,8 +175,6 @@ body.is-admin .list-foot .admin-only{display:flex}
     <button class="hbtn" onclick="exportJSON()">↑ Exportar</button>
     <button class="hbtn" onclick="document.getElementById('fimp').click()">↓ Importar</button>
   </div>
-  <!-- Cambiar PIN: solo visible cuando es admin -->
-  <button class="hbtn admin-only" onclick="openAuthModal('change')" title="Cambiar PIN">🔑 PIN</button>
   <!-- Candado: visible siempre -->
   <button class="lock-btn" id="lockBtn" onclick="lockBtnClick()" title="Administrador">🔒</button>
   <input type="file" id="fimp" accept=".json" onchange="importJSON(event)">
@@ -379,7 +377,9 @@ function renderFull(content, sys, offset) {
 // § 3  ALMACENAMIENTO
 // ════════════════════════════════════════════════════════════════
 
-const SK='himnario_v1', PK='himnario_prefs', AK='himnario_pin';
+const SK='himnario_v1', PK='himnario_prefs';
+// Hash SHA-256 del PIN de administrador (fijo en el código, no editable desde el navegador)
+const ADMIN_HASH='3bd62f7f9ccb2821f5330bd3a68629ed8b8a1a19370adf7d74636e76a698d430';
 
 const db = {
   load()    { try { return JSON.parse(localStorage.getItem(SK))||{hymns:[]}; } catch { return {hymns:[]}; } },
@@ -403,18 +403,13 @@ function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys})); }
 
 // ════════════════════════════════════════════════════════════════
 // § 5  AUTENTICACIÓN ADMIN
-//      El PIN nunca se guarda en claro: se almacena su hash SHA-256.
+//      El hash del PIN está grabado en el código fuente (no en localStorage),
+//      por lo que nadie puede establecer un PIN desde el navegador.
 //      La sesión vive en sessionStorage (se borra al cerrar el navegador).
-//      Flujo:
-//        · Sin PIN configurado → primer uso → modal de configuración.
-//        · PIN configurado, sin sesión → modal de login.
-//        · Con sesión activa → modo admin habilitado (🔓).
-//        · Click en 🔓 → cierra sesión.
 // ════════════════════════════════════════════════════════════════
 
 const SESSION_KEY = 'himnario_admin_session';
 
-// SHA-256 vía Web Crypto API (nativo en todos los navegadores modernos)
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -423,9 +418,7 @@ async function sha256(str) {
 function isAdminSession() { return sessionStorage.getItem(SESSION_KEY)==='1'; }
 function startSession()   { sessionStorage.setItem(SESSION_KEY,'1'); }
 function endSession()     { sessionStorage.removeItem(SESSION_KEY); }
-function hasPinSet()      { return !!localStorage.getItem(AK); }
 
-/** Aplica/quita clase is-admin en <body> y actualiza el ícono del candado. */
 function updateAdminUI() {
   const admin = isAdminSession();
   document.body.classList.toggle('is-admin', admin);
@@ -435,12 +428,10 @@ function updateAdminUI() {
   btn.title = admin ? 'Cerrar sesión admin' : 'Acceso administrador';
 }
 
-/** Click en el candado: si es admin → cierra sesión; si no → abre modal. */
 function lockBtnClick() {
   if (isAdminSession()) {
     endSession();
     updateAdminUI();
-    // Si estaba en el editor, regresa a la lista
     if (S.view==='editor') showList();
     toast('Sesión cerrada');
   } else {
@@ -448,26 +439,13 @@ function lockBtnClick() {
   }
 }
 
-// ── Modal ──────────────────────────────────────────────────────
-
-let _modalMode = 'login'; // 'setup' | 'login' | 'change'
-
-function openAuthModal(mode) {
-  _modalMode = mode || (hasPinSet() ? 'login' : 'setup');
-  const title = { setup:'Crear PIN de administrador', login:'Acceso administrador', change:'Cambiar PIN' };
-  const desc  = {
-    setup: 'Primera vez: elige un PIN para proteger la edición del himnario.',
-    login: 'Ingresa tu PIN para activar el modo edición.',
-    change:'Ingresa tu PIN actual y luego el nuevo.',
-  };
-  document.getElementById('modalTitle').textContent   = title[_modalMode];
-  document.getElementById('modalDesc').textContent    = desc[_modalMode];
-  document.getElementById('pinSubmit').textContent    = _modalMode==='login' ? 'Entrar' : 'Guardar';
-  document.getElementById('pinErr').textContent       = '';
-  document.getElementById('pinA').value               = '';
-  document.getElementById('pinB').value               = '';
-  document.getElementById('pinB').style.display       = _modalMode==='login' ? 'none' : '';
-  document.getElementById('pinB').placeholder         = _modalMode==='change' ? 'Nuevo PIN' : 'Confirmar PIN';
+function openAuthModal() {
+  document.getElementById('modalTitle').textContent = 'Acceso administrador';
+  document.getElementById('modalDesc').textContent  = 'Ingresa tu PIN para activar el modo edición.';
+  document.getElementById('pinSubmit').textContent  = 'Entrar';
+  document.getElementById('pinErr').textContent     = '';
+  document.getElementById('pinA').value             = '';
+  document.getElementById('pinB').style.display     = 'none';
   document.getElementById('modal').classList.add('open');
   setTimeout(() => document.getElementById('pinA').focus(), 80);
 }
@@ -476,48 +454,25 @@ function closeModal() {
   document.getElementById('modal').classList.remove('open');
 }
 
-// Cierra el modal al hacer click en el fondo
 document.getElementById('modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
 
 async function submitPin() {
   const a = document.getElementById('pinA').value;
-  const b = document.getElementById('pinB').value;
   const err = document.getElementById('pinErr');
   err.textContent = '';
-
   if (!a) { err.textContent = 'El PIN no puede estar vacío.'; return; }
 
-  if (_modalMode === 'login') {
-    const hash = await sha256(a);
-    if (hash !== localStorage.getItem(AK)) {
-      err.textContent = 'PIN incorrecto.';
-      document.getElementById('pinA').value = '';
-      document.getElementById('pinA').focus();
-      return;
-    }
-    startSession();
-    updateAdminUI();
-    closeModal();
-    toast('Sesión admin iniciada 🔓');
-
-  } else if (_modalMode === 'setup') {
-    if (a.length < 4) { err.textContent = 'El PIN debe tener al menos 4 caracteres.'; return; }
-    if (a !== b)       { err.textContent = 'Los PINs no coinciden.'; return; }
-    localStorage.setItem(AK, await sha256(a));
-    startSession();
-    updateAdminUI();
-    closeModal();
-    toast('PIN configurado ✓');
-
-  } else if (_modalMode === 'change') {
-    // a = PIN actual, b = PIN nuevo
-    const currentHash = await sha256(a);
-    if (currentHash !== localStorage.getItem(AK)) { err.textContent = 'PIN actual incorrecto.'; return; }
-    if (!b || b.length < 4) { err.textContent = 'El nuevo PIN debe tener al menos 4 caracteres.'; return; }
-    localStorage.setItem(AK, await sha256(b));
-    closeModal();
-    toast('PIN actualizado ✓');
+  const hash = await sha256(a);
+  if (hash !== ADMIN_HASH) {
+    err.textContent = 'PIN incorrecto.';
+    document.getElementById('pinA').value = '';
+    document.getElementById('pinA').focus();
+    return;
   }
+  startSession();
+  updateAdminUI();
+  closeModal();
+  toast('Sesión admin iniciada 🔓');
 }
 
 /** Guarda requiere ser admin. Si no lo es, pide login y reintenta. */
@@ -699,10 +654,6 @@ loadSamples();
 updateAdminUI();
 renderList();
 
-// Si nunca se ha configurado un PIN, avisa sutilmente al admin potencial
-if (!hasPinSet()) {
-  setTimeout(() => toast('Toca 🔒 para configurar el PIN de administrador'), 1200);
-}
 </script>
 </body>
 </html>
