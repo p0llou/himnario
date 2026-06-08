@@ -629,14 +629,15 @@ function importJSON(evt) {
   if (!isAdminSession()) return;
   const file=evt.target.files[0]; if(!file) return;
   const r=new FileReader();
-  r.onload=e=>{
+  r.onload=async e=>{
     try {
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.hymns)) throw new Error('Formato inválido');
       if(!confirm(`Importar ${data.hymns.length} himno(s)?`)) return;
-      const cur=db.load();
-      data.hymns.forEach(h=>{ const i=cur.hymns.findIndex(x=>x.id===h.id); if(i>=0) cur.hymns[i]=h; else cur.hymns.push(h); });
-      db.save(cur); renderList(); toast(`${data.hymns.length} himno(s) importado(s) ✓`);
+      const batch=firestore.batch();
+      data.hymns.forEach(h=>batch.set(hymnsCol.doc(h.id),h));
+      await batch.commit();
+      toast(`${data.hymns.length} himno(s) importado(s) ✓`);
     } catch(err){ toast('Error: '+err.message); }
   };
   r.readAsText(file); evt.target.value='';
