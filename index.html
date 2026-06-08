@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Himnario</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Himnario">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#edf0f7;--surface:#fafbff;--primary:#3b5998;--primary-d:#2d4680;
+  --chord:#9b2335;--key:#5b4b8a;--text:#1a2b42;--muted:#6b7fa3;
+  --border:#cdd5e8;--danger:#b83232;--r:8px;
+  --header-grad:linear-gradient(135deg,#2d4680 0%,#3b5998 55%,#5b6faa 100%);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f1724;--surface:#1a2540;--primary:#4a6ab0;--primary-d:#3b5998;
+  --chord:#e05c6a;--key:#7b68c8;--text:#e8edf8;--muted:#8a9fc0;
+  --border:#2a3a5a;--danger:#e05c6a;
+  --header-grad:linear-gradient(135deg,#1a2c50 0%,#243560 55%,#2d4070 100%);
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);font-size:17px;line-height:1.6;min-height:100vh}
+
+/* ── Header ── */
+header{background:var(--header-grad);color:#fff;padding:10px 16px;display:flex;
+  align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:100;
+  box-shadow:0 3px 12px rgba(0,0,0,.3)}
+header .logo{height:32px;width:auto;object-fit:contain;filter:brightness(0) invert(1);opacity:.92}
+header h1{font-size:1.05rem;font-weight:700;flex:1;white-space:nowrap;
+  letter-spacing:.03em;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.ntoggle{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4);
+  border-radius:20px;padding:4px 13px;cursor:pointer;font-size:.8rem;font-weight:700;
+  white-space:nowrap;transition:background .2s}
+.ntoggle:hover{background:rgba(255,255,255,.3)}
+.hbtn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);
+  border-radius:6px;padding:5px 11px;cursor:pointer;font-size:.78rem;font-weight:600;
+  transition:background .2s}
+.hbtn:hover{background:rgba(255,255,255,.28)}
+/* Botón de candado admin */
+.lock-btn{background:transparent;border:none;color:#fff;font-size:1.15rem;cursor:pointer;
+  padding:4px 6px;opacity:.75;transition:opacity .2s;line-height:1}
+.lock-btn:hover{opacity:1}
+.lock-btn.open{opacity:1}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:var(--r);
+  border:none;cursor:pointer;font-size:.9rem;font-weight:500;transition:all .15s;text-decoration:none}
+.btn-p{background:var(--primary);color:#fff}.btn-p:hover{background:var(--primary-d)}
+.btn-s{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-s:hover{background:var(--bg)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{filter:brightness(.9)}
+.btn-g{background:transparent;color:var(--primary);padding:5px 9px}
+.btn-g:hover{background:var(--bg)}
+.btn-sm{padding:5px 10px;font-size:.82rem}
+.btn-icon{padding:5px 10px;font-size:.95rem;font-weight:700}
+
+/* ── Layout ── */
+main{max-width:820px;margin:0 auto;padding:14px}
+.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden}
+.view{display:none}.view.active{display:block}
+
+/* ── List ── */
+.search-wrap{padding:14px;border-bottom:1px solid var(--border)}
+.search-wrap input{width:100%;padding:9px 16px;border:1px solid var(--border);
+  border-radius:20px;font-size:1rem;outline:none;background:var(--bg);color:var(--text);
+  transition:border-color .2s}
+.search-wrap input:focus{border-color:var(--primary)}
+.hymn-list{list-style:none}
+.hymn-item{display:flex;align-items:center;gap:10px;padding:13px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.hymn-item:last-child{border-bottom:none}
+.hymn-item:hover{background:var(--bg)}
+.hnum{font-weight:700;color:var(--muted);min-width:38px;font-size:.88rem}
+.htitle{flex:1;font-weight:500}
+.kbadge{background:var(--key);color:#fff;border-radius:12px;padding:2px 10px;
+  font-size:.78rem;font-weight:700;white-space:nowrap}
+.empty{text-align:center;padding:44px 20px;color:var(--muted)}
+.empty strong{font-size:1rem;color:var(--text)}
+.list-foot{padding:14px 16px;border-top:1px solid var(--border);display:flex;
+  justify-content:flex-end;gap:8px;align-items:center;min-height:56px}
+
+/* ── Hymn view ── */
+.vbar{display:flex;align-items:center;gap:8px;padding:12px 14px;margin-bottom:10px}
+.vbar-title{flex:1;font-size:.95rem;font-weight:600;padding-left:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hymn-head{padding:18px 20px 14px;border-bottom:1px solid var(--border)}
+.hymn-head .row1{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.hymn-head .vnum{font-size:.88rem;color:var(--muted);font-weight:700}
+.hymn-head h2{font-size:1.45rem;font-weight:700;line-height:1.3}
+.tbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.kdisp{background:var(--key);color:#fff;border-radius:12px;padding:4px 14px;
+  font-size:.95rem;font-weight:700}
+.tlabel{font-size:.82rem;color:var(--muted);margin-left:4px}
+.toffset{background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:3px 8px;font-size:.82rem;font-weight:700;min-width:32px;text-align:center}
+
+/* ── Chord rendering ── */
+.hymn-body{padding:20px;font-size:1.07rem;line-height:1}
+.chord-line{display:flex;flex-wrap:wrap;margin-bottom:2px}
+.cblock{display:inline-flex;flex-direction:column;align-items:flex-start}
+.cn{color:var(--chord);font-weight:700;font-size:.86em;min-height:1.35em;
+  line-height:1.35;white-space:nowrap;padding-right:3px}
+.cl{white-space:pre;line-height:1.65}
+.lyric-line{line-height:1.65;margin-bottom:1px;white-space:pre-wrap}
+.stanza{height:1em}
+
+/* ── Editor ── */
+.eform{padding:18px;display:flex;flex-direction:column;gap:15px}
+.frow{display:flex;gap:12px;flex-wrap:wrap}
+.fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:110px}
+.fg.full{flex:1 1 100%}
+label{font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+input[type=text],input[type=number],input[type=password],textarea{
+  padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);
+  font-size:1rem;font-family:inherit;outline:none;
+  background:var(--bg);color:var(--text);transition:border-color .2s;width:100%}
+input:focus,textarea:focus{border-color:var(--primary);background:var(--surface)}
+textarea#fcontent{font-family:'Menlo','Consolas','Courier New',monospace;font-size:.88rem;
+  line-height:1.65;min-height:280px;resize:vertical}
+.hint{font-size:.79rem;color:var(--muted);line-height:1.55;padding:9px 12px;
+  background:var(--bg);border-radius:var(--r);border:1px solid var(--border)}
+.hint code{background:var(--border);border-radius:3px;padding:1px 4px;font-size:.95em}
+.factions{display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border);align-items:center}
+.factions .sp{flex:1}
+
+/* ── Modal de autenticación ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;
+  display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal-box{background:var(--surface);border-radius:12px;padding:28px 24px;
+  width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.modal-box h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+.modal-box p{font-size:.88rem;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.modal-box input{margin-bottom:6px}
+.pin-error{font-size:.82rem;color:var(--danger);min-height:1.2em;margin-bottom:10px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:#1e293b;color:#fff;padding:9px 22px;border-radius:20px;font-size:.88rem;
+  opacity:0;transition:all .28s;z-index:999;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Misc ── */
+#fimp{display:none}
+.admin-only{display:none}
+body.is-admin .admin-only{display:inline-flex}
+body.is-admin .list-foot .admin-only{display:flex}
+@media(max-width:500px){
+  main{padding:8px}
+  .hymn-body{padding:14px;font-size:1rem}
+  .eform{padding:12px}
+  header h1{font-size:.95rem}
+}
+@media print{
+  header,.vbar,.tbar .btn,.list-foot{display:none!important}
+  .cn{color:#000!important}
+  .kdisp{background:#000!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="LOGO IEAP2 2.png" class="logo" alt="" onerror="this.style.display='none'">
+  <h1>Himnario</h1>
+  <button class="ntoggle" id="ntoggle" onclick="toggleNotation()">Do-Re-Mi</button>
+  <!-- Export/Import: solo admin -->
+  <div class="admin-only" style="gap:7px">
+    <button class="hbtn" onclick="exportJSON()">↑ Exportar</button>
+    <button class="hbtn" onclick="document.getElementById('fimp').click()">↓ Importar</button>
+  </div>
+  <!-- Cambiar PIN: solo visible cuando es admin -->
+  <button class="hbtn admin-only" onclick="openAuthModal('change')" title="Cambiar PIN">🔑 PIN</button>
+  <!-- Candado: visible siempre -->
+  <button class="lock-btn" id="lockBtn" onclick="lockBtnClick()" title="Administrador">🔒</button>
+  <input type="file" id="fimp" accept=".json" onchange="importJSON(event)">
+</header>
+
+<main>
+  <!-- ═══ LISTA ═══ -->
+  <div class="view active" id="view-list">
+    <div class="card">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Buscar por número o título…" oninput="renderList()">
+      </div>
+      <ul class="hymn-list" id="hymnList"></ul>
+      <div class="list-foot">
+        <!-- Solo visible cuando es admin -->
+        <button class="btn btn-p admin-only" onclick="showEditor(null)">+ Nuevo himno</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HIMNO ═══ -->
+  <div class="view" id="view-hymn">
+    <div class="vbar">
+      <button class="btn btn-s btn-sm" onclick="showList()">← Volver</button>
+      <span class="vbar-title" id="vbarTitle"></span>
+      <!-- Solo visible cuando es admin -->
+      <button class="btn btn-s btn-sm admin-only" onclick="editCurrent()">✎ Editar</button>
+    </div>
+    <div class="card">
+      <div class="hymn-head">
+        <div class="row1">
+          <span class="vnum" id="vNum"></span>
+          <h2 id="vTitle"></h2>
+        </div>
+        <div class="tbar">
+          <span class="kdisp" id="kDisp"></span>
+          <span class="tlabel">Transportar:</span>
+          <button class="btn btn-s btn-icon btn-sm" onclick="doTranspose(-1)">−</button>
+          <span class="toffset" id="tOffset">0</span>
+          <button class="btn btn-s btn-icon btn-sm" onclick="doTranspose(+1)">+</button>
+          <button class="btn btn-g btn-sm" onclick="resetTranspose()">Reset</button>
+        </div>
+      </div>
+      <div class="hymn-body" id="hymnBody"></div>
+    </div>
+  </div>
+
+  <!-- ═══ EDITOR ═══ -->
+  <div class="view" id="view-editor">
+    <div class="vbar">
+      <button class="btn btn-s btn-sm" onclick="cancelEdit()">← Cancelar</button>
+      <span class="vbar-title" id="edTitle">Nuevo himno</span>
+    </div>
+    <div class="card">
+      <div class="eform">
+        <div class="frow">
+          <div class="fg" style="max-width:100px">
+            <label for="fnum">Número</label>
+            <input type="number" id="fnum" min="1" placeholder="1">
+          </div>
+          <div class="fg">
+            <label for="ftitle">Título</label>
+            <input type="text" id="ftitle" placeholder="Título del himno">
+          </div>
+          <div class="fg" style="max-width:120px">
+            <label for="fkey">Tonalidad</label>
+            <input type="text" id="fkey" placeholder="Do, C, Fa#…">
+          </div>
+        </div>
+        <div class="fg full">
+          <label for="fcontent">Letra y acordes</label>
+          <div class="hint">
+            Coloca el acorde entre corchetes donde cambia: <code>[Do]Cuan[Sol]do</code> o <code>[C]When[G] it</code><br>
+            Acepta notación latina (<code>Do Re Fa# Sib</code>) y americana (<code>C D F# Bb</code>) mezcladas.
+          </div>
+          <textarea id="fcontent" placeholder="[Do]Cuando me ena[Sol]moré de [Do]ti&#10;[Fa]Todo cam[Sol]bió en [Do]mí"></textarea>
+        </div>
+        <div class="factions">
+          <button class="btn btn-p" onclick="saveHymn()">💾 Guardar</button>
+          <div class="sp"></div>
+          <button class="btn btn-d btn-sm" id="deleteBtn" onclick="deleteHymn()" style="display:none">🗑 Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ═══ MODAL DE AUTENTICACIÓN ═══ -->
+<div class="modal-bg" id="modal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Acceso administrador</h3>
+    <p id="modalDesc"></p>
+    <input type="password" id="pinA" placeholder="PIN" autocomplete="off" onkeydown="if(event.key==='Enter')submitPin()">
+    <input type="password" id="pinB" placeholder="Confirmar PIN" autocomplete="off"
+           style="display:none;margin-top:6px" onkeydown="if(event.key==='Enter')submitPin()">
+    <div class="pin-error" id="pinErr"></div>
+    <div class="modal-actions">
+      <button class="btn btn-s btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-p btn-sm" id="pinSubmit" onclick="submitPin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// § 1  SISTEMA DE ACORDES
+// ════════════════════════════════════════════════════════════════
+
+const NOTE_ST = {
+  'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,
+  'E':4,'Fb':4,'E#':5,'F':5,'F#':6,'Gb':6,
+  'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,
+  'B':11,'Cb':11,'B#':0,
+  'Do':0,'Do#':1,'Dob':11,
+  'Re':2,'Re#':3,'Reb':1,
+  'Mi':4,'Mib':3,'Mi#':5,
+  'Fa':5,'Fa#':6,'Fab':4,
+  'Sol':7,'Sol#':8,'Solb':6,
+  'La':9,'La#':10,'Lab':8,
+  'Si':11,'Sib':10,'Si#':0,
+};
+
+const ROOTS = Object.keys(NOTE_ST).sort((a,b) => b.length - a.length || a.localeCompare(b));
+
+const SHARP = {
+  american: ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],
+  latin:    ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'],
+};
+
+function stName(st, sys) { return SHARP[sys][((st%12)+12)%12]; }
+
+function parseChord(raw) {
+  const s = (raw||'').trim();
+  if (!s) return null;
+  let root=null, rest=s;
+  for (const r of ROOTS) { if (s.startsWith(r)) { root=r; rest=s.slice(r.length); break; } }
+  if (!root) return null;
+  const semitone = NOTE_ST[root];
+  let suffix=rest, bassSt=null;
+  const si = rest.indexOf('/');
+  if (si !== -1) { suffix=rest.slice(0,si); const bp=parseChord(rest.slice(si+1)); if(bp) bassSt=bp.semitone; }
+  return { semitone, suffix, bassSt };
+}
+
+function chordStr(parsed, sys, offset=0) {
+  const st = ((parsed.semitone+offset)%12+12)%12;
+  let s = stName(st,sys)+parsed.suffix;
+  if (parsed.bassSt!==null) s += '/'+stName(((parsed.bassSt+offset)%12+12)%12,sys);
+  return s;
+}
+
+function normalizeContent(raw) {
+  return raw.replace(/\[([^\]]+)\]/g, (_,ch) => {
+    const p=parseChord(ch.trim()); return p ? '['+chordStr(p,'american')+']' : '['+ch+']';
+  });
+}
+
+function convertContent(stored, sys, offset) {
+  if (sys==='american' && offset===0) return stored;
+  return stored.replace(/\[([^\]]+)\]/g, (_,ch) => {
+    const p=parseChord(ch.trim()); return p ? '['+chordStr(p,sys,offset)+']' : '['+ch+']';
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 2  RENDERIZADO
+// ════════════════════════════════════════════════════════════════
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function splitLine(line) {
+  const parts = line.split(/\[([^\]]+)\]/);
+  const segs = [];
+  if (parts[0]) segs.push({chord:null, text:parts[0]});
+  for (let i=1; i<parts.length; i+=2) segs.push({chord:parts[i], text:parts[i+1]??''});
+  return segs;
+}
+
+function renderLine(line, sys, offset) {
+  if (!line.includes('[')) {
+    return line.trim()==='' ? '<div class="stanza"></div>' : `<div class="lyric-line">${esc(line)}</div>`;
+  }
+  const segs = splitLine(line);
+  const html = segs.map(({chord,text}) => {
+    let cn='';
+    if (chord) { const p=parseChord(chord.trim()); cn=p ? esc(chordStr(p,sys,offset)) : esc(chord); }
+    const cl = esc(text)||(chord?' ':'');
+    return `<span class="cblock"><span class="cn">${cn}</span><span class="cl">${cl}</span></span>`;
+  }).join('');
+  return `<div class="chord-line">${html}</div>`;
+}
+
+function renderFull(content, sys, offset) {
+  return content.split('\n').map(l => renderLine(l,sys,offset)).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 3  ALMACENAMIENTO
+// ════════════════════════════════════════════════════════════════
+
+const SK='himnario_v1', PK='himnario_prefs', AK='himnario_pin';
+
+const db = {
+  load()    { try { return JSON.parse(localStorage.getItem(SK))||{hymns:[]}; } catch { return {hymns:[]}; } },
+  save(d)   { localStorage.setItem(SK,JSON.stringify(d)); },
+  all()     { return this.load().hymns.sort((a,b)=>a.numero-b.numero); },
+  get(id)   { return this.load().hymns.find(h=>h.id===id)||null; },
+  upsert(h) { const d=this.load(); const i=d.hymns.findIndex(x=>x.id===h.id); if(i>=0) d.hymns[i]=h; else d.hymns.push(h); this.save(d); },
+  remove(id){ const d=this.load(); d.hymns=d.hymns.filter(h=>h.id!==id); this.save(d); },
+};
+
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ════════════════════════════════════════════════════════════════
+// § 4  ESTADO
+// ════════════════════════════════════════════════════════════════
+
+const S = { view:'list', hymnId:null, offset:0, sys:'latin' };
+
+function loadPrefs() { try { const p=JSON.parse(localStorage.getItem(PK)); if(p?.sys) S.sys=p.sys; } catch {} }
+function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys})); }
+
+// ════════════════════════════════════════════════════════════════
+// § 5  AUTENTICACIÓN ADMIN
+//      El PIN nunca se guarda en claro: se almacena su hash SHA-256.
+//      La sesión vive en sessionStorage (se borra al cerrar el navegador).
+//      Flujo:
+//        · Sin PIN configurado → primer uso → modal de configuración.
+//        · PIN configurado, sin sesión → modal de login.
+//        · Con sesión activa → modo admin habilitado (🔓).
+//        · Click en 🔓 → cierra sesión.
+// ════════════════════════════════════════════════════════════════
+
+const SESSION_KEY = 'himnario_admin_session';
+
+// SHA-256 vía Web Crypto API (nativo en todos los navegadores modernos)
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function isAdminSession() { return sessionStorage.getItem(SESSION_KEY)==='1'; }
+function startSession()   { sessionStorage.setItem(SESSION_KEY,'1'); }
+function endSession()     { sessionStorage.removeItem(SESSION_KEY); }
+function hasPinSet()      { return !!localStorage.getItem(AK); }
+
+/** Aplica/quita clase is-admin en <body> y actualiza el ícono del candado. */
+function updateAdminUI() {
+  const admin = isAdminSession();
+  document.body.classList.toggle('is-admin', admin);
+  const btn = document.getElementById('lockBtn');
+  btn.textContent = admin ? '🔓' : '🔒';
+  btn.classList.toggle('open', admin);
+  btn.title = admin ? 'Cerrar sesión admin' : 'Acceso administrador';
+}
+
+/** Click en el candado: si es admin → cierra sesión; si no → abre modal. */
+function lockBtnClick() {
+  if (isAdminSession()) {
+    endSession();
+    updateAdminUI();
+    // Si estaba en el editor, regresa a la lista
+    if (S.view==='editor') showList();
+    toast('Sesión cerrada');
+  } else {
+    openAuthModal();
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────
+
+let _modalMode = 'login'; // 'setup' | 'login' | 'change'
+
+function openAuthModal(mode) {
+  _modalMode = mode || (hasPinSet() ? 'login' : 'setup');
+  const title = { setup:'Crear PIN de administrador', login:'Acceso administrador', change:'Cambiar PIN' };
+  const desc  = {
+    setup: 'Primera vez: elige un PIN para proteger la edición del himnario.',
+    login: 'Ingresa tu PIN para activar el modo edición.',
+    change:'Ingresa tu PIN actual y luego el nuevo.',
+  };
+  document.getElementById('modalTitle').textContent   = title[_modalMode];
+  document.getElementById('modalDesc').textContent    = desc[_modalMode];
+  document.getElementById('pinSubmit').textContent    = _modalMode==='login' ? 'Entrar' : 'Guardar';
+  document.getElementById('pinErr').textContent       = '';
+  document.getElementById('pinA').value               = '';
+  document.getElementById('pinB').value               = '';
+  document.getElementById('pinB').style.display       = _modalMode==='login' ? 'none' : '';
+  document.getElementById('pinB').placeholder         = _modalMode==='change' ? 'Nuevo PIN' : 'Confirmar PIN';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('pinA').focus(), 80);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// Cierra el modal al hacer click en el fondo
+document.getElementById('modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+async function submitPin() {
+  const a = document.getElementById('pinA').value;
+  const b = document.getElementById('pinB').value;
+  const err = document.getElementById('pinErr');
+  err.textContent = '';
+
+  if (!a) { err.textContent = 'El PIN no puede estar vacío.'; return; }
+
+  if (_modalMode === 'login') {
+    const hash = await sha256(a);
+    if (hash !== localStorage.getItem(AK)) {
+      err.textContent = 'PIN incorrecto.';
+      document.getElementById('pinA').value = '';
+      document.getElementById('pinA').focus();
+      return;
+    }
+    startSession();
+    updateAdminUI();
+    closeModal();
+    toast('Sesión admin iniciada 🔓');
+
+  } else if (_modalMode === 'setup') {
+    if (a.length < 4) { err.textContent = 'El PIN debe tener al menos 4 caracteres.'; return; }
+    if (a !== b)       { err.textContent = 'Los PINs no coinciden.'; return; }
+    localStorage.setItem(AK, await sha256(a));
+    startSession();
+    updateAdminUI();
+    closeModal();
+    toast('PIN configurado ✓');
+
+  } else if (_modalMode === 'change') {
+    // a = PIN actual, b = PIN nuevo
+    const currentHash = await sha256(a);
+    if (currentHash !== localStorage.getItem(AK)) { err.textContent = 'PIN actual incorrecto.'; return; }
+    if (!b || b.length < 4) { err.textContent = 'El nuevo PIN debe tener al menos 4 caracteres.'; return; }
+    localStorage.setItem(AK, await sha256(b));
+    closeModal();
+    toast('PIN actualizado ✓');
+  }
+}
+
+/** Guarda requiere ser admin. Si no lo es, pide login y reintenta. */
+function requireAdmin(action) {
+  if (isAdminSession()) { action(); return; }
+  openAuthModal('login');
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 6  VISTAS
+// ════════════════════════════════════════════════════════════════
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  S.view = name;
+}
+
+function renderList() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let hs = db.all();
+  if (q) hs = hs.filter(h=>String(h.numero).includes(q)||h.titulo.toLowerCase().includes(q));
+  const ul = document.getElementById('hymnList');
+  if (!hs.length) {
+    ul.innerHTML=`<li class="empty"><strong>${q?'Sin resultados':'¡El himnario está vacío!'}</strong><br>
+      <span style="font-size:.9rem">${q?`No hay resultados para "${esc(q)}"`:'Inicia sesión como admin para agregar himnos.'}</span></li>`;
+    return;
+  }
+  ul.innerHTML = hs.map(h => {
+    const kn = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
+    return `<li class="hymn-item" onclick="showHymn('${h.id}')">
+      <span class="hnum">${h.numero}</span>
+      <span class="htitle">${esc(h.titulo)}</span>
+      ${kn?`<span class="kbadge">${kn}</span>`:''}
+    </li>`;
+  }).join('');
+}
+
+function showList() { S.offset=0; showView('list'); renderList(); }
+
+function showHymn(id) { S.hymnId=id; S.offset=0; refreshHymn(); showView('hymn'); }
+
+function refreshHymn() {
+  const h = db.get(S.hymnId); if(!h) return;
+  const kt = (((h.tonalidad??0)+S.offset)%12+12)%12;
+  const kn = h.tonalidad!=null ? stName(kt,S.sys) : '—';
+  const off = S.offset===0?'0':(S.offset>0?'+'+S.offset:S.offset);
+  document.getElementById('vbarTitle').textContent = h.titulo;
+  document.getElementById('vNum').textContent      = '#'+h.numero;
+  document.getElementById('vTitle').textContent    = h.titulo;
+  document.getElementById('kDisp').textContent     = kn;
+  document.getElementById('tOffset').textContent   = off;
+  document.getElementById('hymnBody').innerHTML    = renderFull(h.contenido,S.sys,S.offset);
+}
+
+function doTranspose(d) { S.offset+=d; refreshHymn(); }
+function resetTranspose() { S.offset=0; refreshHymn(); }
+function editCurrent() { if(S.hymnId) showEditor(S.hymnId); }
+
+function showEditor(id) {
+  if (!isAdminSession()) { openAuthModal('login'); return; }
+  S.hymnId = id;
+  const h = id ? db.get(id) : null;
+  document.getElementById('edTitle').textContent       = h ? 'Editar himno' : 'Nuevo himno';
+  document.getElementById('deleteBtn').style.display   = h ? '' : 'none';
+  if (h) {
+    document.getElementById('fnum').value     = h.numero;
+    document.getElementById('ftitle').value   = h.titulo;
+    document.getElementById('fkey').value     = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
+    document.getElementById('fcontent').value = convertContent(h.contenido,S.sys,0);
+  } else {
+    ['fnum','ftitle','fkey','fcontent'].forEach(i=>document.getElementById(i).value='');
+  }
+  showView('editor');
+}
+
+function cancelEdit() { if(S.hymnId) showHymn(S.hymnId); else showList(); }
+
+function saveHymn() {
+  if (!isAdminSession()) return;
+  const num    = parseInt(document.getElementById('fnum').value);
+  const titulo = document.getElementById('ftitle').value.trim();
+  const keyRaw = document.getElementById('fkey').value.trim();
+  const cRaw   = document.getElementById('fcontent').value;
+  if (!num||num<1) return toast('Ingresa un número válido');
+  if (!titulo)     return toast('El título es obligatorio');
+  let tonalidad = null;
+  if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; }
+  const hymn = { id:S.hymnId||genId(), numero:num, titulo, tonalidad, contenido:normalizeContent(cRaw) };
+  db.upsert(hymn);
+  S.hymnId = hymn.id;
+  toast('Himno guardado ✓');
+  showHymn(hymn.id);
+}
+
+function deleteHymn() {
+  if (!isAdminSession()) return;
+  if (!S.hymnId||!confirm('¿Eliminar este himno? Esta acción no se puede deshacer.')) return;
+  db.remove(S.hymnId);
+  S.hymnId=null;
+  toast('Himno eliminado');
+  showList();
+}
+
+function toggleNotation() {
+  S.sys = S.sys==='american' ? 'latin' : 'american';
+  savePrefs();
+  document.getElementById('ntoggle').textContent = S.sys==='american' ? 'C-D-E' : 'Do-Re-Mi';
+  if (S.view==='list')   renderList();
+  if (S.view==='hymn')   refreshHymn();
+  if (S.view==='editor' && S.hymnId) {
+    const h=db.get(S.hymnId);
+    if(h){ document.getElementById('fkey').value=h.tonalidad!=null?stName(h.tonalidad,S.sys):''; document.getElementById('fcontent').value=convertContent(h.contenido,S.sys,0); }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 7  IMPORTAR / EXPORTAR
+// ════════════════════════════════════════════════════════════════
+
+function exportJSON() {
+  if (!isAdminSession()) return;
+  const blob=new Blob([JSON.stringify(db.load(),null,2)],{type:'application/json'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:'himnario_backup.json'});
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function importJSON(evt) {
+  if (!isAdminSession()) return;
+  const file=evt.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try {
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.hymns)) throw new Error('Formato inválido');
+      if(!confirm(`Importar ${data.hymns.length} himno(s)?`)) return;
+      const cur=db.load();
+      data.hymns.forEach(h=>{ const i=cur.hymns.findIndex(x=>x.id===h.id); if(i>=0) cur.hymns[i]=h; else cur.hymns.push(h); });
+      db.save(cur); renderList(); toast(`${data.hymns.length} himno(s) importado(s) ✓`);
+    } catch(err){ toast('Error: '+err.message); }
+  };
+  r.readAsText(file); evt.target.value='';
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 8  TOAST
+// ════════════════════════════════════════════════════════════════
+
+let _tt;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+// ════════════════════════════════════════════════════════════════
+// § 9  DATOS DE MUESTRA + ARRANQUE
+// ════════════════════════════════════════════════════════════════
+
+function loadSamples() {
+  if (db.load().hymns.length) return;
+  db.save({ hymns: [
+    { id:'_s1', numero:1, titulo:'Sublime Gracia', tonalidad:5,
+      contenido:`[F]Sublime [Bb]gracia del Se[F]ñor\nQue a un in[F]feliz sal[C]vó\n[F]Fui [Bb]ciego, mas hoy [F]veo yo\nPer[F]dido, él me ha[C]lló [F]\n\n[F]Su gracia me en[Bb]señó a te[F]mer\nMis [F]dudas a[C]huyentó\n[F]¡Oh cuán [Bb]precioso fue a [F]mi ser\nEl [F]día que a[C]mé a [F]Dios!` },
+    { id:'_s2', numero:2, titulo:'Santo, Santo, Santo', tonalidad:0,
+      contenido:`[C]Santo, [F]Santo, [C]Santo es el Se[G]ñor\n[C]Dios om[Am]ni[F]po[C]tente\n[F]Santo, [C]Santo, [G]Santo, [C]Señor\n[F]Bendito [C]eres [G]tú [C]\n\n[Am]Todo el [Em]cielo ado[F]ra tu [C]nombre\n[F]Santo, [C]Santo, [G]Santo es el Se[C]ñor` },
+    { id:'_s3', numero:3, titulo:'Cuán Grande es Él', tonalidad:7,
+      contenido:`[G]Señor mi [C]Dios, al con[G]templar los [D]cielos\nEl [G]firmamento y las [C]estrellas [G]mil\n[C]Al oír tu [G]voz en los po[D]derosos truenos\nY [G]ver brillar [D]al [G]sol en su cenit\n\n[C]Entonces [G]canta mi [Em]alma\nMi [G]Salvador a [D]ti\n[G]Cuán [C]grande [G]es [D]él\n[G]Cuán [C]grande [D]es [G]él` },
+    { id:'_s4', numero:4, titulo:'Maravillosa Gracia', tonalidad:2,
+      contenido:`[D]Maravillosa [G]gracia de Je[D]sús\nMás [D]grande que todo mi [A]pecado\n[D]Allá en el [G]madero del [D]Señor\nMi [A]deuda él [D]canceló\n\n[D]Maravillosa [G]gracia, [D]maravillosa gracia\n[D]Gracia que [A]me per[D]donó` },
+  ]});
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+
+loadPrefs();
+document.getElementById('ntoggle').textContent = S.sys==='american' ? 'C-D-E' : 'Do-Re-Mi';
+loadSamples();
+updateAdminUI();
+renderList();
+
+// Si nunca se ha configurado un PIN, avisa sutilmente al admin potencial
+if (!hasPinSet()) {
+  setTimeout(() => toast('Toca 🔒 para configurar el PIN de administrador'), 1200);
+}
+</script>
+</body>
+</html>
