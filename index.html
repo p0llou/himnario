@@ -79,6 +79,8 @@ main{max-width:820px;margin:0 auto;padding:14px}
 .hymn-item:last-child{border-bottom:none}
 .hymn-item:hover{background:var(--bg)}
 .hnum{font-weight:700;color:var(--muted);min-width:38px;font-size:.88rem}
+.esp-badge{background:var(--primary);color:#fff;border-radius:6px;padding:1px 7px;
+  font-size:.78rem;font-weight:700;letter-spacing:.04em}
 .htitle{flex:1;font-weight:500}
 .kbadge{background:var(--key);color:#fff;border-radius:12px;padding:2px 10px;
   font-size:.78rem;font-weight:700;white-space:nowrap}
@@ -233,8 +235,14 @@ body.is-admin .list-foot .admin-only{display:flex}
     </div>
     <div class="card">
       <div class="eform">
+        <div class="frow" style="align-items:center;gap:16px;padding-bottom:4px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.88rem;text-transform:none;letter-spacing:0;color:var(--text)">
+            <input type="checkbox" id="fesp" onchange="toggleEsp()" style="width:16px;height:16px;accent-color:var(--primary)">
+            Himno especial (sin número)
+          </label>
+        </div>
         <div class="frow">
-          <div class="fg" style="max-width:100px">
+          <div class="fg" id="fnumWrap" style="max-width:100px">
             <label for="fnum">Número</label>
             <input type="number" id="fnum" min="1" placeholder="1">
           </div>
@@ -409,7 +417,14 @@ firestore.enablePersistence().catch(() => {});
 let hymnCache = [];
 
 const db = {
-  all()            { return [...hymnCache].sort((a,b)=>a.numero-b.numero); },
+  all() {
+    return [...hymnCache].sort((a,b) => {
+      if (a.especial && !b.especial) return 1;
+      if (!a.especial && b.especial) return -1;
+      if (a.especial && b.especial) return a.titulo.localeCompare(b.titulo);
+      return a.numero - b.numero;
+    });
+  },
   get(id)          { return hymnCache.find(h=>h.id===id)||null; },
   async upsert(h)  { await hymnsCol.doc(h.id).set(h); },
   async remove(id) { await hymnsCol.doc(id).delete(); },
@@ -519,7 +534,11 @@ function showView(name) {
 function renderList() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let hs = db.all();
-  if (q) hs = hs.filter(h=>String(h.numero).includes(q)||h.titulo.toLowerCase().includes(q));
+  if (q) hs = hs.filter(h =>
+    (!h.especial && String(h.numero).includes(q)) ||
+    h.titulo.toLowerCase().includes(q) ||
+    (h.especial && 'esp'.includes(q))
+  );
   const ul = document.getElementById('hymnList');
   if (!hs.length) {
     ul.innerHTML=`<li class="empty"><strong>${q?'Sin resultados':'¡El himnario está vacío!'}</strong><br>
@@ -528,8 +547,11 @@ function renderList() {
   }
   ul.innerHTML = hs.map(h => {
     const kn = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
+    const numHtml = h.especial
+      ? `<span class="esp-badge">ESP</span>`
+      : `<span class="hnum">${h.numero}</span>`;
     return `<li class="hymn-item" onclick="showHymn('${h.id}')">
-      <span class="hnum">${h.numero}</span>
+      ${numHtml}
       <span class="htitle">${esc(h.titulo)}</span>
       ${kn?`<span class="kbadge">${kn}</span>`:''}
     </li>`;
@@ -546,7 +568,7 @@ function refreshHymn() {
   const kn = h.tonalidad!=null ? stName(kt,S.sys) : '—';
   const off = S.offset===0?'0':(S.offset>0?'+'+S.offset:S.offset);
   document.getElementById('vbarTitle').textContent = h.titulo;
-  document.getElementById('vNum').textContent      = '#'+h.numero;
+  document.getElementById('vNum').textContent      = h.especial ? 'ESP' : '#'+h.numero;
   document.getElementById('vTitle').textContent    = h.titulo;
   document.getElementById('kDisp').textContent     = kn;
   document.getElementById('tOffset').textContent   = off;
@@ -563,8 +585,11 @@ function showEditor(id) {
   const h = id ? db.get(id) : null;
   document.getElementById('edTitle').textContent       = h ? 'Editar himno' : 'Nuevo himno';
   document.getElementById('deleteBtn').style.display   = h ? '' : 'none';
+  const esp = !!(h?.especial);
+  document.getElementById('fesp').checked = esp;
+  document.getElementById('fnumWrap').style.display = esp ? 'none' : '';
   if (h) {
-    document.getElementById('fnum').value     = h.numero;
+    document.getElementById('fnum').value     = h.numero || '';
     document.getElementById('ftitle').value   = h.titulo;
     document.getElementById('fkey').value     = h.tonalidad!=null ? stName(h.tonalidad,S.sys) : '';
     document.getElementById('fcontent').value = convertContent(h.contenido,S.sys,0);
@@ -576,17 +601,23 @@ function showEditor(id) {
 
 function cancelEdit() { if(S.hymnId) showHymn(S.hymnId); else showList(); }
 
+function toggleEsp() {
+  const esp = document.getElementById('fesp').checked;
+  document.getElementById('fnumWrap').style.display = esp ? 'none' : '';
+}
+
 async function saveHymn() {
   if (!isAdminSession()) return;
-  const num    = parseInt(document.getElementById('fnum').value);
+  const esp    = document.getElementById('fesp').checked;
+  const num    = esp ? null : parseInt(document.getElementById('fnum').value);
   const titulo = document.getElementById('ftitle').value.trim();
   const keyRaw = document.getElementById('fkey').value.trim();
   const cRaw   = document.getElementById('fcontent').value;
-  if (!num||num<1) return toast('Ingresa un número válido');
-  if (!titulo)     return toast('El título es obligatorio');
+  if (!esp && (!num||num<1)) return toast('Ingresa un número válido');
+  if (!titulo)               return toast('El título es obligatorio');
   let tonalidad = null;
   if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; }
-  const hymn = { id:S.hymnId||genId(), numero:num, titulo, tonalidad, contenido:normalizeContent(cRaw) };
+  const hymn = { id:S.hymnId||genId(), especial:esp, numero:num, titulo, tonalidad, contenido:normalizeContent(cRaw) };
   await db.upsert(hymn);
   S.hymnId = hymn.id;
   toast('Himno guardado ✓');
