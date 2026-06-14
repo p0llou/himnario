@@ -893,15 +893,20 @@ function colaAddHymn(id) {
 }
 
 async function saveCola() {
-  if(!isAdminSession()) return;
+  if(!isAdminSession()) return toast('Sesión expirada');
   const fecha=document.getElementById('cFecha').value;
   const titulo=document.getElementById('cTitulo').value.trim();
   if(!fecha) return toast('Ingresa una fecha');
   const cola={id:S.colaId||genId(),fecha,titulo,himnos:editColaHimnos};
-  await colasCol.doc(cola.id).set(cola);
-  S.colaId=cola.id;
-  toast('Cola guardada ✓');
-  showColas();
+  try {
+    await colasCol.doc(cola.id).set(cola);
+    S.colaId=cola.id;
+    toast('Cola guardada ✓');
+    showColas();
+  } catch(err) {
+    toast('Error: '+err.message);
+    console.error('saveCola:', err);
+  }
 }
 
 async function deleteCola() {
