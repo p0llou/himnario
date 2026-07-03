@@ -232,8 +232,10 @@ body.is-admin .list-foot .admin-only{display:flex}
   <!-- ═══ HIMNO ═══ -->
   <div class="view" id="view-hymn">
     <div class="vbar">
-      <button class="btn btn-s btn-sm" onclick="showList()">← Volver</button>
+      <button class="btn btn-s btn-sm" onclick="goBack()">← Volver</button>
+      <button class="btn btn-s btn-icon btn-sm" id="prevBtn" onclick="prevHymn()" style="display:none">‹</button>
       <span class="vbar-title" id="vbarTitle"></span>
+      <button class="btn btn-s btn-icon btn-sm" id="nextBtn" onclick="nextHymn()" style="display:none">›</button>
       <!-- Solo visible cuando es admin -->
       <button class="btn btn-s btn-sm admin-only" onclick="editCurrent()">✎ Editar</button>
     </div>
@@ -528,7 +530,7 @@ function genId() { return Date.now().toString(36)+Math.random().toString(36).sli
 // § 4  ESTADO
 // ════════════════════════════════════════════════════════════════
 
-const S = { view:'list', hymnId:null, colaId:null, offset:0, sys:'latin' };
+const S = { view:'list', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin' };
 
 function loadPrefs() { try { const p=JSON.parse(localStorage.getItem(PK)); if(p?.sys) S.sys=p.sys; } catch {} }
 function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys})); }
@@ -652,7 +654,11 @@ function renderList() {
 
 function showList() { S.offset=0; showView('list'); renderList(); }
 
-function showHymn(id) { S.hymnId=id; S.offset=0; refreshHymn(); showView('hymn'); }
+function showHymn(id, fromView) { S.hymnId=id; S.offset=0; S.fromView=fromView||'list'; refreshHymn(); showView('hymn'); }
+function goBack() { if(S.fromView==='cola-view') showColaView(S.colaId); else showList(); }
+function getColaHimnos() { const c=colaCache.find(x=>x.id===S.colaId); return c?(c.himnos||[]): []; }
+function prevHymn() { const hs=getColaHimnos(),i=hs.indexOf(S.hymnId); if(i>0) showHymn(hs[i-1],'cola-view'); }
+function nextHymn() { const hs=getColaHimnos(),i=hs.indexOf(S.hymnId); if(i<hs.length-1) showHymn(hs[i+1],'cola-view'); }
 
 function refreshHymn() {
   const h = db.get(S.hymnId); if(!h) return;
@@ -665,6 +671,14 @@ function refreshHymn() {
   document.getElementById('kDisp').textContent     = kn;
   document.getElementById('tOffset').textContent   = off;
   document.getElementById('hymnBody').innerHTML    = renderFull(h.contenido,S.sys,S.offset);
+  const inCola = S.fromView==='cola-view';
+  const hs = inCola ? getColaHimnos() : [];
+  const idx = hs.indexOf(S.hymnId);
+  const pBtn = document.getElementById('prevBtn');
+  const nBtn = document.getElementById('nextBtn');
+  pBtn.style.display = inCola ? '' : 'none';
+  nBtn.style.display = inCola ? '' : 'none';
+  if(inCola){ pBtn.disabled=idx<=0; nBtn.disabled=idx>=hs.length-1; }
 }
 
 function doTranspose(d) { S.offset+=d; refreshHymn(); }
@@ -817,7 +831,7 @@ function renderColaView(c) {
   if (!himnos.length) { ul.innerHTML='<li class="empty">Sin himnos en esta cola.</li>'; return; }
   ul.innerHTML = himnos.map((h,i)=>{
     const numHtml = h.especial?`<span class="esp-badge">ESP</span>`:`<span class="hnum">${h.numero}</span>`;
-    return `<li class="hymn-item" onclick="showHymn('${h.id}')">
+    return `<li class="hymn-item" onclick="showHymn('${h.id}','cola-view')">
       <span style="color:var(--muted);font-size:.82rem;min-width:20px">${i+1}.</span>
       ${numHtml}<span class="htitle">${esc(h.titulo)}</span>
     </li>`;
