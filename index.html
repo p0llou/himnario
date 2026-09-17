@@ -384,8 +384,8 @@ body.is-admin .list-foot .admin-only{display:flex}
   <div class="modal-box">
     <h3 id="modalTitle">Acceso administrador</h3>
     <p id="modalDesc"></p>
-    <input type="password" id="pinA" placeholder="PIN" autocomplete="off" onkeydown="if(event.key==='Enter')submitPin()">
-    <input type="password" id="pinB" placeholder="Confirmar PIN" autocomplete="off"
+    <input type="text" id="pinA" placeholder="PIN" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')submitPin()">
+    <input type="text" id="pinB" placeholder="Confirmar PIN" autocomplete="off" autocapitalize="off" spellcheck="false"
            style="display:none;margin-top:6px" onkeydown="if(event.key==='Enter')submitPin()">
     <div class="pin-error" id="pinErr"></div>
     <div class="modal-actions">
