@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Himnario">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
@@ -17,7 +20,7 @@
 :root{
   --bg:#edf0f7;--surface:#fafbff;--primary:#3b5998;--primary-d:#2d4680;
   --chord:#9b2335;--key:#5b4b8a;--text:#1a2b42;--muted:#6b7fa3;
-  --border:#cdd5e8;--danger:#b83232;--r:8px;
+  --border:#cdd5e8;--danger:#b83232;--r:12px;
   --header-grad:linear-gradient(135deg,#2d4680 0%,#3b5998 55%,#5b6faa 100%);
 }
 @media(prefers-color-scheme:dark){:root{
@@ -26,16 +29,16 @@
   --border:#2a3a5a;--danger:#e05c6a;
   --header-grad:linear-gradient(135deg,#1a2c50 0%,#243560 55%,#2d4070 100%);
 }}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   background:var(--bg);color:var(--text);font-size:17px;line-height:1.6;min-height:100vh}
 
 /* ── Header ── */
-header{background:var(--header-grad);color:#fff;padding:10px 16px;display:flex;
+header{background:var(--header-grad);color:#fff;padding:12px 16px;display:flex;
   align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:100;
-  box-shadow:0 3px 12px rgba(0,0,0,.3)}
+  border-radius:0 0 18px 18px;box-shadow:0 4px 16px rgba(0,0,0,.22)}
 header .logo{height:44px;width:auto;object-fit:contain;filter:brightness(0) invert(1);opacity:.92}
-header h1{font-size:1.05rem;font-weight:700;flex:1;white-space:nowrap;
-  letter-spacing:.03em;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+header h1{font-size:1.05rem;font-weight:800;flex:1;white-space:nowrap;
+  letter-spacing:.01em;text-shadow:0 1px 3px rgba(0,0,0,.25)}
 .ntoggle{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4);
   border-radius:20px;padding:4px 13px;cursor:pointer;font-size:.8rem;font-weight:700;
   white-space:nowrap;transition:background .2s}
@@ -50,12 +53,28 @@ header h1{font-size:1.05rem;font-weight:700;flex:1;white-space:nowrap;
 .lock-btn:hover{opacity:1}
 .lock-btn.open{opacity:1}
 
+/* ── Selector de color de acento ── */
+.accent-picker{position:relative}
+.accent-panel{position:absolute;top:calc(100% + 10px);right:0;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.22);
+  padding:14px;display:none;z-index:200;width:196px;color:var(--text)}
+.accent-panel.open{display:block}
+.accent-panel-label{font-size:.78rem;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:10px}
+.accent-swatches{display:flex;flex-wrap:wrap;gap:10px}
+.accent-swatch{width:28px;height:28px;border-radius:50%;background:var(--sw);
+  border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s}
+.accent-swatch:hover{transform:scale(1.12)}
+.accent-swatch.active{border-color:var(--surface);box-shadow:0 0 0 2px var(--sw)}
+
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:var(--r);
-  border:none;cursor:pointer;font-size:.9rem;font-weight:500;transition:all .15s;text-decoration:none}
-.btn-p{background:var(--primary);color:#fff}.btn-p:hover{background:var(--primary-d)}
+  border:none;cursor:pointer;font-size:.9rem;font-weight:600;transition:all .15s;text-decoration:none}
+.btn-p{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.btn-p:hover{background:var(--primary-d);transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.18)}
+.btn-p:active{transform:translateY(0)}
 .btn-s{background:var(--surface);color:var(--text);border:1px solid var(--border)}
-.btn-s:hover{background:var(--bg)}
+.btn-s:hover{background:var(--bg);border-color:var(--primary)}
 .btn-d{background:var(--danger);color:#fff}.btn-d:hover{filter:brightness(.9)}
 .btn-g{background:transparent;color:var(--primary);padding:5px 9px}
 .btn-g:hover{background:var(--bg)}
@@ -64,7 +83,8 @@ header h1{font-size:1.05rem;font-weight:700;flex:1;white-space:nowrap;
 
 /* ── Layout ── */
 main{max-width:820px;margin:0 auto;padding:14px}
-.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden}
+.card{background:var(--surface);border-radius:calc(var(--r) + 4px);border:1px solid var(--border);
+  overflow:hidden;box-shadow:0 2px 10px rgba(20,30,60,.06)}
 .view{display:none}.view.active{display:block}
 
 /* ── List ── */
@@ -75,9 +95,9 @@ main{max-width:820px;margin:0 auto;padding:14px}
 .search-wrap input:focus{border-color:var(--primary)}
 .hymn-list{list-style:none}
 .hymn-item{display:flex;align-items:center;gap:10px;padding:13px 16px;
-  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s,padding-left .15s}
 .hymn-item:last-child{border-bottom:none}
-.hymn-item:hover{background:var(--bg)}
+.hymn-item:hover{background:var(--bg);padding-left:20px}
 .hnum{font-weight:700;color:var(--muted);min-width:38px;font-size:.88rem}
 .esp-badge{background:var(--primary);color:#fff;border-radius:6px;padding:1px 7px;
   font-size:.78rem;font-weight:700;letter-spacing:.04em}
@@ -205,6 +225,13 @@ body.is-admin .list-foot .admin-only{display:flex}
   <h1>Himnario</h1>
   <button class="ntoggle" id="ntoggle" onclick="toggleNotation()">Do-Re-Mi</button>
   <button class="hbtn" onclick="showColas()">📋 Cola</button>
+  <div class="accent-picker">
+    <button class="hbtn" onclick="toggleAccentPanel()" title="Color de acento">🎨</button>
+    <div class="accent-panel" id="accentPanel">
+      <span class="accent-panel-label">Color de acento</span>
+      <div class="accent-swatches" id="accentSwatches"></div>
+    </div>
+  </div>
   <!-- Export/Import: solo admin -->
   <div class="admin-only" style="gap:7px">
     <button class="hbtn" onclick="exportJSON()">↑ Exportar</button>
@@ -542,7 +569,7 @@ function genId() { return Date.now().toString(36)+Math.random().toString(36).sli
 // § 4  ESTADO
 // ════════════════════════════════════════════════════════════════
 
-const S = { view:'list', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3 };
+const S = { view:'list', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3, accent:'azul' };
 
 function loadPrefs() {
   try {
@@ -550,9 +577,54 @@ function loadPrefs() {
     if(p?.sys) S.sys=p.sys;
     if(p?.fontScale) S.fontScale=p.fontScale;
     if(p?.scrollSpeed) S.scrollSpeed=p.scrollSpeed;
+    if(p?.accent) S.accent=p.accent;
   } catch {}
 }
-function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys,fontScale:S.fontScale,scrollSpeed:S.scrollSpeed})); }
+function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys,fontScale:S.fontScale,scrollSpeed:S.scrollSpeed,accent:S.accent})); }
+
+// ── Color de acento ──
+const ACCENTS = {
+  azul:     { label:'Azul',     light:{p:'#3b5998',pd:'#2d4680',g:'linear-gradient(135deg,#2d4680 0%,#3b5998 55%,#5b6faa 100%)'}, dark:{p:'#4a6ab0',pd:'#3b5998',g:'linear-gradient(135deg,#1a2c50 0%,#243560 55%,#2d4070 100%)'} },
+  verde:    { label:'Verde',    light:{p:'#2f8f5b',pd:'#256f47',g:'linear-gradient(135deg,#1f6b45 0%,#2f8f5b 55%,#4aab78 100%)'}, dark:{p:'#3fae74',pd:'#2f8f5b',g:'linear-gradient(135deg,#123b28 0%,#1c5236 55%,#256f47 100%)'} },
+  ambar:    { label:'Ámbar',    light:{p:'#c17d1f',pd:'#a1660f',g:'linear-gradient(135deg,#8a5a10 0%,#c17d1f 55%,#dba14a 100%)'}, dark:{p:'#d99a3d',pd:'#c17d1f',g:'linear-gradient(135deg,#4a3007 0%,#6e4a10 55%,#8a5a10 100%)'} },
+  rosa:     { label:'Rosa',     light:{p:'#c14c7a',pd:'#a13a63',g:'linear-gradient(135deg,#8a2f57 0%,#c14c7a 55%,#dd7fa2 100%)'}, dark:{p:'#d9678f',pd:'#c14c7a',g:'linear-gradient(135deg,#4a1830 0%,#6e2547 55%,#8a2f57 100%)'} },
+  morado:   { label:'Morado',   light:{p:'#6b52c8',pd:'#5540a6',g:'linear-gradient(135deg,#4a3891 0%,#6b52c8 55%,#8e78dd 100%)'}, dark:{p:'#8570d9',pd:'#6b52c8',g:'linear-gradient(135deg,#241a4d 0%,#37276e 55%,#4a3891 100%)'} },
+  turquesa: { label:'Turquesa', light:{p:'#1f95a3',pd:'#177885',g:'linear-gradient(135deg,#0f5c66 0%,#1f95a3 55%,#4bb8c4 100%)'}, dark:{p:'#3cb3c1',pd:'#1f95a3',g:'linear-gradient(135deg,#082e33 0%,#0f4850 55%,#0f5c66 100%)'} },
+};
+
+function applyAccent(name) {
+  S.accent = ACCENTS[name] ? name : 'azul';
+  const preset = ACCENTS[S.accent];
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const v = dark ? preset.dark : preset.light;
+  const root = document.documentElement.style;
+  root.setProperty('--primary', v.p);
+  root.setProperty('--primary-d', v.pd);
+  root.setProperty('--header-grad', v.g);
+  document.querySelectorAll('.accent-swatch').forEach(el =>
+    el.classList.toggle('active', el.dataset.accent === S.accent));
+}
+
+function renderAccentSwatches() {
+  const wrap = document.getElementById('accentSwatches');
+  wrap.innerHTML = Object.keys(ACCENTS).map(k => {
+    const c = ACCENTS[k].light.p;
+    return `<button class="accent-swatch${S.accent===k?' active':''}" data-accent="${k}"
+      style="--sw:${c}" title="${ACCENTS[k].label}"
+      onclick="applyAccent('${k}');savePrefs();toggleAccentPanel(false)"></button>`;
+  }).join('');
+}
+
+function toggleAccentPanel(force) {
+  const panel = document.getElementById('accentPanel');
+  panel.classList.toggle('open', force ?? !panel.classList.contains('open'));
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.accent-picker')) toggleAccentPanel(false);
+});
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyAccent(S.accent));
 
 // ════════════════════════════════════════════════════════════════
 // § 5  AUTENTICACIÓN ADMIN
@@ -1024,6 +1096,8 @@ document.getElementById('ntoggle').textContent = S.sys==='american' ? 'C-D-E' : 
 updateAdminUI();
 applyFontScale();
 document.getElementById('scrollSpeedDisp').textContent = S.scrollSpeed;
+renderAccentSwatches();
+applyAccent(S.accent);
 
 // Conectar listener en tiempo real — actualiza hymnCache y re-renderiza
 hymnsCol.onSnapshot(snapshot => {
