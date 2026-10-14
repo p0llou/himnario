@@ -927,6 +927,7 @@ function showEditor(id) {
   const esp = alab || !!(h?.especial);
   document.getElementById('fesp').checked = esp;
   document.getElementById('fespRow').style.display  = alab ? 'none' : '';
+  document.getElementById('ftitle').placeholder     = alab ? 'Título de la alabanza' : 'Título del himno';
   document.getElementById('fnumWrap').style.display = esp ? 'none' : '';
   if (h) {
     document.getElementById('fnum').value     = h.numero || '';
@@ -966,10 +967,11 @@ async function saveHymn() {
 
 async function deleteHymn() {
   if (!isAdminSession()) return;
-  if (!S.hymnId||!confirm('¿Eliminar este himno? Esta acción no se puede deshacer.')) return;
+  const alab = S.edTipo==='alabanza';
+  if (!S.hymnId||!confirm(`¿Eliminar ${alab?'esta alabanza':'este himno'}? Esta acción no se puede deshacer.`)) return;
   await db.remove(S.hymnId);
   S.hymnId=null;
-  toast('Himno eliminado');
+  toast(alab ? 'Alabanza eliminada' : 'Himno eliminado');
   showList();
 }
 
