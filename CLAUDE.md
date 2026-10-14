@@ -31,11 +31,11 @@ Toda la app vive en `index.html`: CSS en `<style>`, JS vanilla en `<script>`, di
 - **§2 Render**: formato ChordPro simple, `[Acorde]sílaba`. Cada línea con acordes → bloques `.cblock` (acorde `.cn` sobre letra `.cl`).
 - **§3 Firestore** (SDK compat por CDN, proyecto `himnario-ieap`): colección `hymns`. `onSnapshot` alimenta `hymnCache`; `db` es wrapper sobre ese caché. Persistencia offline activada.
 - **§4 Estado**: objeto global `S`. Preferencias (notación, letra, velocidad scroll, acento) en `localStorage` clave `himnario_prefs`. Temas de color en `ACCENTS` (variante light/dark), aplicados vía variables CSS en `:root`.
-- **§5 Admin**: PIN validado contra `ADMIN_HASH` (SHA-256 fijo en código). Sesión en `sessionStorage`. Clase `body.is-admin` muestra elementos `.admin-only`. Protección solo de UI; seguridad real depende de reglas Firestore.
+- **§5 Admin**: PIN validado contra lista `ADMIN_HASHES` (SHA-256 fijos en código). Sesión en `sessionStorage`. Clase `body.is-admin` muestra elementos `.admin-only`. Protección solo de UI; seguridad real depende de reglas Firestore.
 - **§6 Vistas**: SPA con `<div class="view" id="view-X">`, cambio vía `showView(name)`. Handlers inline `onclick` en HTML.
 - **§8 Colas**: colección `colas` (`{id, fecha, titulo, himnos:[ids]}`), listas ordenadas de himnos por servicio; navegación prev/next dentro de cola.
 
-Modelo himno: `{id, especial, numero, titulo, tonalidad (semitono|null), tSuffix, contenido}`. Himnos `especial` no tienen número y van al final ordenados por título.
+Modelo himno: `{id, tipo ('himno'|'alabanza'; ausente = himno), especial, numero, titulo, tonalidad (semitono|null), tSuffix, contenido}`. Himnos `especial` no tienen número y van al final ordenados por título. Alabanzas se guardan con `especial:true` y sin número; pestañas de lista filtran por `tipo`.
 
 ## Service worker
 `sw.js` usa cache-first con actualización en segundo plano. Al cambiar archivos cacheados, subir versión `CACHE` (`himnario-vN`) para forzar refresco en clientes.
