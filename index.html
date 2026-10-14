@@ -96,6 +96,12 @@ main{max-width:820px;margin:0 auto;padding:14px}
 .view{display:none}.view.active{display:block}
 
 /* ── List ── */
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;
+  font-family:inherit;font-size:.92rem;font-weight:700;color:var(--muted);cursor:pointer;
+  transition:color .15s,border-color .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 .search-wrap{padding:14px;border-bottom:1px solid var(--border);position:relative}
 .search-wrap svg{position:absolute;left:34px;top:50%;transform:translateY(-50%);
   color:var(--muted);pointer-events:none}
@@ -270,6 +276,10 @@ body.is-admin .list-foot .admin-only{display:flex}
   <!-- ═══ LISTA ═══ -->
   <div class="view active" id="view-list">
     <div class="card">
+      <div class="tabs">
+        <button class="tab active" id="tab-himnos" onclick="setLista('himnos')">Himnos</button>
+        <button class="tab" id="tab-alabanzas" onclick="setLista('alabanzas')">Alabanzas</button>
+      </div>
       <div class="search-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="searchInput" placeholder="Buscar por número o título…" oninput="renderList()">
@@ -277,7 +287,7 @@ body.is-admin .list-foot .admin-only{display:flex}
       <ul class="hymn-list" id="hymnList"></ul>
       <div class="list-foot">
         <!-- Solo visible cuando es admin -->
-        <button class="btn btn-p admin-only" onclick="showEditor(null)">+ Nuevo himno</button>
+        <button class="btn btn-p admin-only" id="newBtn" onclick="showEditor(null)">+ Nuevo himno</button>
       </div>
     </div>
   </div>
@@ -333,7 +343,7 @@ body.is-admin .list-foot .admin-only{display:flex}
     </div>
     <div class="card">
       <div class="eform">
-        <div class="frow" style="align-items:center;gap:16px;padding-bottom:4px">
+        <div class="frow" id="fespRow" style="align-items:center;gap:16px;padding-bottom:4px">
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.88rem;text-transform:none;letter-spacing:0;color:var(--text)">
             <input type="checkbox" id="fesp" onchange="toggleEsp()" style="width:16px;height:16px;accent-color:var(--primary)">
             Himno especial (sin número)
@@ -612,7 +622,7 @@ function genId() { return Date.now().toString(36)+Math.random().toString(36).sli
 // § 4  ESTADO
 // ════════════════════════════════════════════════════════════════
 
-const S = { view:'list', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3, accent:'azul' };
+const S = { view:'list', lista:'himnos', edTipo:'himno', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3, accent:'azul' };
 
 function loadPrefs() {
   try {
@@ -789,7 +799,8 @@ function showView(name) {
 
 function renderList() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  let hs = db.all();
+  const alab = S.lista==='alabanzas';
+  let hs = db.all().filter(h => (h.tipo==='alabanza') === alab);
   if (q) hs = hs.filter(h =>
     (!h.especial && String(h.numero).includes(q)) ||
     h.titulo.toLowerCase().includes(q) ||
@@ -797,13 +808,14 @@ function renderList() {
   );
   const ul = document.getElementById('hymnList');
   if (!hs.length) {
-    ul.innerHTML=`<li class="empty"><strong>${q?'Sin resultados':'¡El himnario está vacío!'}</strong><br>
-      <span style="font-size:.9rem">${q?`No hay resultados para "${esc(q)}"`:'Inicia sesión como admin para agregar himnos.'}</span></li>`;
+    ul.innerHTML=`<li class="empty"><strong>${q?'Sin resultados':(alab?'¡No hay alabanzas!':'¡El himnario está vacío!')}</strong><br>
+      <span style="font-size:.9rem">${q?`No hay resultados para "${esc(q)}"`:`Inicia sesión como admin para agregar ${alab?'alabanzas':'himnos'}.`}</span></li>`;
     return;
   }
   ul.innerHTML = hs.map(h => {
     const kn = h.tonalidad!=null ? stName(h.tonalidad,S.sys)+(h.tSuffix||'') : '';
-    const numHtml = h.especial
+    const numHtml = alab ? ''
+      : h.especial
       ? `<span class="esp-badge">ESP</span>`
       : `<span class="hnum">${h.numero}</span>`;
     return `<li class="hymn-item" onclick="showHymn('${h.id}')">
@@ -815,6 +827,15 @@ function renderList() {
 }
 
 function showList() { S.offset=0; showView('list'); renderList(); }
+
+function setLista(name) {
+  S.lista = name;
+  document.getElementById('tab-himnos').classList.toggle('active', name==='himnos');
+  document.getElementById('tab-alabanzas').classList.toggle('active', name==='alabanzas');
+  document.getElementById('newBtn').textContent = name==='alabanzas' ? '+ Nueva alabanza' : '+ Nuevo himno';
+  document.getElementById('searchInput').value = '';
+  renderList();
+}
 
 function showHymn(id, fromView) { S.hymnId=id; S.offset=0; S.fromView=fromView||'list'; refreshHymn(); showView('hymn'); }
 function goBack() { if(S.fromView==='cola-view') showColaView(S.colaId); else showList(); }
@@ -828,7 +849,7 @@ function refreshHymn() {
   const kn = h.tonalidad!=null ? stName(kt,S.sys)+(h.tSuffix||'') : '—';
   const off = S.offset===0?'0':(S.offset>0?'+'+S.offset:S.offset);
   document.getElementById('vbarTitle').textContent = h.titulo;
-  document.getElementById('vNum').textContent      = h.especial ? 'ESP' : '#'+h.numero;
+  document.getElementById('vNum').textContent      = h.tipo==='alabanza' ? '' : h.especial ? 'ESP' : '#'+h.numero;
   document.getElementById('vTitle').textContent    = h.titulo;
   document.getElementById('kDisp').textContent     = kn;
   document.getElementById('tOffset').textContent   = off;
@@ -896,10 +917,13 @@ function showEditor(id) {
   if (!isAdminSession()) { openAuthModal('login'); return; }
   S.hymnId = id;
   const h = id ? db.get(id) : null;
-  document.getElementById('edTitle').textContent       = h ? 'Editar himno' : 'Nuevo himno';
+  S.edTipo = h ? (h.tipo||'himno') : (S.lista==='alabanzas' ? 'alabanza' : 'himno');
+  const alab = S.edTipo==='alabanza';
+  document.getElementById('edTitle').textContent       = alab ? (h ? 'Editar alabanza' : 'Nueva alabanza') : (h ? 'Editar himno' : 'Nuevo himno');
   document.getElementById('deleteBtn').style.display   = h ? '' : 'none';
-  const esp = !!(h?.especial);
+  const esp = alab || !!(h?.especial);
   document.getElementById('fesp').checked = esp;
+  document.getElementById('fespRow').style.display  = alab ? 'none' : '';
   document.getElementById('fnumWrap').style.display = esp ? 'none' : '';
   if (h) {
     document.getElementById('fnum').value     = h.numero || '';
@@ -930,10 +954,10 @@ async function saveHymn() {
   if (!titulo)               return toast('El título es obligatorio');
   let tonalidad = null, tSuffix = '';
   if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; tSuffix=p.suffix||''; }
-  const hymn = { id:S.hymnId||genId(), especial:esp, numero:num, titulo, tonalidad, tSuffix, contenido:normalizeContent(cRaw) };
+  const hymn = { id:S.hymnId||genId(), tipo:S.edTipo, especial:esp, numero:num, titulo, tonalidad, tSuffix, contenido:normalizeContent(cRaw) };
   await db.upsert(hymn);
   S.hymnId = hymn.id;
-  toast('Himno guardado');
+  toast(S.edTipo==='alabanza' ? 'Alabanza guardada' : 'Himno guardado');
   showHymn(hymn.id);
 }
 
@@ -1039,7 +1063,7 @@ function renderColaView(c) {
   const himnos = (c.himnos||[]).map(id=>db.get(id)).filter(Boolean);
   if (!himnos.length) { ul.innerHTML='<li class="empty">Sin himnos en esta cola.</li>'; return; }
   ul.innerHTML = himnos.map((h,i)=>{
-    const numHtml = h.especial?`<span class="esp-badge">ESP</span>`:`<span class="hnum">${h.numero}</span>`;
+    const numHtml = h.especial?`<span class="esp-badge">${h.tipo==='alabanza'?'ALB':'ESP'}</span>`:`<span class="hnum">${h.numero}</span>`;
     return `<li class="hymn-item" onclick="showHymn('${h.id}','cola-view')">
       <span style="color:var(--muted);font-size:.82rem;min-width:20px">${i+1}.</span>
       ${numHtml}<span class="htitle">${esc(h.titulo)}</span>
@@ -1070,7 +1094,7 @@ function renderColaQueue() {
   }
   ul.innerHTML = editColaHimnos.map((id,i)=>{
     const h=db.get(id); if(!h) return '';
-    const numHtml=h.especial?`<span class="esp-badge" style="flex-shrink:0">ESP</span>`:`<span class="hnum" style="flex-shrink:0">${h.numero}</span>`;
+    const numHtml=h.especial?`<span class="esp-badge" style="flex-shrink:0">${h.tipo==='alabanza'?'ALB':'ESP'}</span>`:`<span class="hnum" style="flex-shrink:0">${h.numero}</span>`;
     return `<li class="cq-item">
       <span class="cq-idx">${i+1}.</span>
       ${numHtml}
@@ -1103,7 +1127,7 @@ function renderColaSearch() {
   ).slice(0,8);
   if(!res.length){ul.innerHTML='<li class="pick-item" style="color:var(--muted)">Sin resultados</li>';return;}
   ul.innerHTML=res.map(h=>{
-    const numHtml=h.especial?`<span class="esp-badge">ESP</span>`:`<span class="hnum">${h.numero}</span>`;
+    const numHtml=h.especial?`<span class="esp-badge">${h.tipo==='alabanza'?'ALB':'ESP'}</span>`:`<span class="hnum">${h.numero}</span>`;
     return `<li class="pick-item" onclick="colaAddHymn('${h.id}')">
       ${numHtml}<span>${esc(h.titulo)}</span>
     </li>`;
