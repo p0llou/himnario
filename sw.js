@@ -1,4 +1,4 @@
-const CACHE = 'himnario-v3';
+const CACHE = 'himnario-v4';
 const FILES = ['./', './index.html', './manifest.json', './icon.svg'];
 
 // Al instalar: guarda todos los archivos en caché

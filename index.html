@@ -321,10 +321,11 @@ body.is-admin .list-foot .admin-only{display:flex}
         </div>
         <div class="tbar" style="margin-top:8px">
           <button class="btn btn-s btn-icon btn-sm" id="scrollBtn" onclick="toggleAutoScroll()">▶</button>
-          <span class="tlabel">Velocidad:</span>
-          <button class="btn btn-s btn-icon btn-sm" onclick="changeScrollSpeed(-1)">−</button>
+          <button class="btn btn-s btn-sm" id="bpmBtn" onclick="toggleBpmMode()">BPM</button>
+          <span class="tlabel" id="scrollLabel">Velocidad:</span>
+          <button class="btn btn-s btn-icon btn-sm" onclick="changeScrollSpeed(-0.5)">−</button>
           <span class="toffset" id="scrollSpeedDisp">3</span>
-          <button class="btn btn-s btn-icon btn-sm" onclick="changeScrollSpeed(+1)">+</button>
+          <button class="btn btn-s btn-icon btn-sm" onclick="changeScrollSpeed(+0.5)">+</button>
           <span class="tlabel">Letra:</span>
           <button class="btn btn-s btn-icon btn-sm" onclick="changeFontSize(-1)">A−</button>
           <span class="toffset" id="fontSizeDisp">100%</span>
@@ -361,6 +362,16 @@ body.is-admin .list-foot .admin-only{display:flex}
           <div class="fg" style="max-width:120px">
             <label for="fkey">Tonalidad</label>
             <input type="text" id="fkey" placeholder="Do, C, Fa#…">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="fg" style="max-width:120px">
+            <label for="fbpm">BPM</label>
+            <input type="text" inputmode="numeric" id="fbpm" placeholder="80">
+          </div>
+          <div class="fg" style="max-width:160px">
+            <label for="ftiempos">Tiempos por línea</label>
+            <input type="text" inputmode="numeric" id="ftiempos" placeholder="8">
           </div>
         </div>
         <div class="fg full">
@@ -625,7 +636,7 @@ function genId() { return Date.now().toString(36)+Math.random().toString(36).sli
 // § 4  ESTADO
 // ════════════════════════════════════════════════════════════════
 
-const S = { view:'list', lista:'himnos', edTipo:'himno', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3, accent:'azul' };
+const S = { view:'list', lista:'himnos', edTipo:'himno', hymnId:null, colaId:null, fromView:'list', offset:0, sys:'latin', fontScale:1, scrollSpeed:3, scrollMode:'manual', bpm:80, tiempos:8, accent:'azul' };
 
 function loadPrefs() {
   try {
@@ -633,10 +644,11 @@ function loadPrefs() {
     if(p?.sys) S.sys=p.sys;
     if(p?.fontScale) S.fontScale=p.fontScale;
     if(p?.scrollSpeed) S.scrollSpeed=p.scrollSpeed;
+    if(p?.scrollMode) S.scrollMode=p.scrollMode;
     if(p?.accent) S.accent=p.accent;
   } catch {}
 }
-function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys,fontScale:S.fontScale,scrollSpeed:S.scrollSpeed,accent:S.accent})); }
+function savePrefs() { localStorage.setItem(PK,JSON.stringify({sys:S.sys,fontScale:S.fontScale,scrollSpeed:S.scrollSpeed,scrollMode:S.scrollMode,accent:S.accent})); }
 
 // ── Color de acento ──
 const ACCENTS = {
@@ -840,7 +852,12 @@ function setLista(name) {
   renderList();
 }
 
-function showHymn(id, fromView) { S.hymnId=id; S.offset=0; S.fromView=fromView||'list'; refreshHymn(); showView('hymn'); }
+function showHymn(id, fromView) {
+  const h = db.get(id);
+  S.hymnId=id; S.offset=0; S.fromView=fromView||'list';
+  S.bpm=h?.bpm||80; S.tiempos=h?.tiempos||8;
+  refreshHymn(); updateScrollDisp(); showView('hymn');
+}
 function goBack() { if(S.fromView==='cola-view') showColaView(S.colaId); else showList(); }
 function getColaHimnos() { const c=colaCache.find(x=>x.id===S.colaId); return c?(c.himnos||[]): []; }
 function prevHymn() { const hs=getColaHimnos(),i=hs.indexOf(S.hymnId); if(i>0) showHymn(hs[i-1],'cola-view'); }
@@ -886,7 +903,7 @@ function autoScrollStep(ts) {
   if (scrollLastTs === null) scrollLastTs = ts;
   const dt = ts - scrollLastTs;
   scrollLastTs = ts;
-  window.scrollBy(0, 12 * S.scrollSpeed * dt / 1000);
+  window.scrollBy(0, scrollPxPerSec() * dt / 1000);
   if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 2) { stopAutoScroll(); return; }
   scrollRAF = requestAnimationFrame(autoScrollStep);
 }
@@ -898,9 +915,39 @@ function toggleAutoScroll() {
   document.getElementById('scrollBtn').textContent = '⏸';
 }
 
+// En modo BPM: alto promedio de línea × líneas por segundo (bpm / 60 / tiempos por línea)
+function scrollPxPerSec() {
+  if (S.scrollMode==='bpm') {
+    const body = document.getElementById('hymnBody');
+    const n = body.querySelectorAll('.chord-line,.lyric-line').length;
+    if (n) return body.offsetHeight / n * S.bpm / (60 * S.tiempos);
+  }
+  return 12 * S.scrollSpeed;
+}
+
+function updateScrollDisp() {
+  const bpm = S.scrollMode==='bpm';
+  document.getElementById('scrollLabel').textContent     = bpm ? 'BPM:' : 'Velocidad:';
+  document.getElementById('scrollSpeedDisp').textContent = bpm ? S.bpm : S.scrollSpeed;
+  const btn = document.getElementById('bpmBtn');
+  btn.classList.toggle('btn-p', bpm);
+  btn.classList.toggle('btn-s', !bpm);
+}
+
+function toggleBpmMode() {
+  S.scrollMode = S.scrollMode==='bpm' ? 'manual' : 'bpm';
+  updateScrollDisp();
+  savePrefs();
+}
+
 function changeScrollSpeed(d) {
-  S.scrollSpeed = Math.min(10, Math.max(1, S.scrollSpeed + d));
-  document.getElementById('scrollSpeedDisp').textContent = S.scrollSpeed;
+  if (S.scrollMode==='bpm') {
+    S.bpm = Math.min(240, Math.max(30, S.bpm + Math.sign(d)*2));
+    updateScrollDisp();
+    return;
+  }
+  S.scrollSpeed = Math.min(10, Math.max(0.5, Math.round((S.scrollSpeed + d) * 2) / 2));
+  updateScrollDisp();
   savePrefs();
 }
 
@@ -934,8 +981,10 @@ function showEditor(id) {
     document.getElementById('ftitle').value   = h.titulo;
     document.getElementById('fkey').value     = h.tonalidad!=null ? stName(h.tonalidad,S.sys)+(h.tSuffix||'') : '';
     document.getElementById('fcontent').value = convertContent(h.contenido,S.sys,0);
+    document.getElementById('fbpm').value     = h.bpm || '';
+    document.getElementById('ftiempos').value = h.tiempos || '';
   } else {
-    ['fnum','ftitle','fkey','fcontent'].forEach(i=>document.getElementById(i).value='');
+    ['fnum','ftitle','fkey','fcontent','fbpm','ftiempos'].forEach(i=>document.getElementById(i).value='');
   }
   showView('editor');
 }
@@ -958,7 +1007,13 @@ async function saveHymn() {
   if (!titulo)               return toast('El título es obligatorio');
   let tonalidad = null, tSuffix = '';
   if (keyRaw) { const p=parseChord(keyRaw); if(!p) return toast('Tonalidad no reconocida: '+keyRaw); tonalidad=p.semitone; tSuffix=p.suffix||''; }
-  const hymn = { id:S.hymnId||genId(), tipo:S.edTipo, especial:esp, numero:num, titulo, tonalidad, tSuffix, contenido:normalizeContent(cRaw) };
+  const bpmRaw = document.getElementById('fbpm').value.trim();
+  const tRaw   = document.getElementById('ftiempos').value.trim();
+  const bpm     = bpmRaw ? parseInt(bpmRaw, 10) : null;
+  const tiempos = tRaw   ? parseInt(tRaw, 10)   : null;
+  if (bpmRaw && !(bpm>=30 && bpm<=240)) return toast('BPM debe estar entre 30 y 240');
+  if (tRaw && !(tiempos>=1))            return toast('Tiempos por línea inválidos');
+  const hymn = { id:S.hymnId||genId(), tipo:S.edTipo, especial:esp, numero:num, titulo, tonalidad, tSuffix, bpm, tiempos, contenido:normalizeContent(cRaw) };
   await db.upsert(hymn);
   S.hymnId = hymn.id;
   toast(S.edTipo==='alabanza' ? 'Alabanza guardada' : 'Himno guardado');
@@ -1198,7 +1253,7 @@ loadPrefs();
 document.getElementById('ntoggle').textContent = S.sys==='american' ? 'C-D-E' : 'Do-Re-Mi';
 updateAdminUI();
 applyFontScale();
-document.getElementById('scrollSpeedDisp').textContent = S.scrollSpeed;
+updateScrollDisp();
 renderAccentSwatches();
 applyAccent(S.accent);
 

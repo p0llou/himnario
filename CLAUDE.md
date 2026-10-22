@@ -35,7 +35,7 @@ Toda la app vive en `index.html`: CSS en `<style>`, JS vanilla en `<script>`, di
 - **§6 Vistas**: SPA con `<div class="view" id="view-X">`, cambio vía `showView(name)`. Handlers inline `onclick` en HTML.
 - **§8 Colas**: colección `colas` (`{id, fecha, titulo, himnos:[ids]}`), listas ordenadas de himnos por servicio; navegación prev/next dentro de cola.
 
-Modelo himno: `{id, tipo ('himno'|'alabanza'; ausente = himno), especial, numero, titulo, tonalidad (semitono|null), tSuffix, contenido}`. Himnos `especial` no tienen número y van al final ordenados por título. Alabanzas se guardan con `especial:true` y sin número; pestañas de lista filtran por `tipo`.
+Modelo himno: `{id, tipo ('himno'|'alabanza'; ausente = himno), especial, numero, titulo, tonalidad (semitono|null), tSuffix, bpm (número|null), tiempos (tiempos por línea|null), contenido}`. Himnos `especial` no tienen número y van al final ordenados por título. Alabanzas se guardan con `especial:true` y sin número; pestañas de lista filtran por `tipo`.
 
 ## Service worker
 `sw.js` usa cache-first con actualización en segundo plano. Al cambiar archivos cacheados, subir versión `CACHE` (`himnario-vN`) para forzar refresco en clientes.
